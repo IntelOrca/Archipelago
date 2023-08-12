@@ -1,42 +1,16 @@
-import settings
-import typing
-# from .Options import residentevil_options  # the options we defined earlier
-# from .Items import residentevil_items  # data used below to add items to the World
-# from .Locations import residentevil_locations  # same as above
-from worlds.AutoWorld import World
+from .Data import load_biorand_data
 from BaseClasses import Location, Item, ItemClassification, Region, NamedTuple
 from Options import Option, DefaultOnToggle
+from typing import List
+from worlds.AutoWorld import World
+import settings
+import typing
+
+biorand_data = load_biorand_data("/mnt/f/games/re2/mod_biorand/ap_pl0.json")
 
 class RandomMusic(DefaultOnToggle):
     """Whether background music will be randomized"""
     display_name = "Randomize music"
-
-class ItemData(NamedTuple):
-    type: int
-    amount: int
-    name: str
-
-    @property
-    def id(self) -> int:
-        return self.type | (self.amount << 8)
-
-residentevil_items = [
-    ItemData(20, 15, "Handgun Ammo"),
-    ItemData(21, 6, "Shotgun Ammo"),
-    ItemData(30, 2, "Ink Ribbon"),
-    ItemData(35, 1, "First Aid Spray"),
-    ItemData(38, 1, "Green Herb"),
-    ItemData(39, 1, "Red Herb"),
-    ItemData(40, 1, "Blue Herb"),
-]
-
-class LocationData(NamedTuple):
-    index: int
-    name: str
-
-residentevil_locations = [
-    LocationData(index, f"Item {index}") for index in range(256)
-]
 
 residentevil_options: typing.Dict[str, type(Option)] = {
     "random_bgm": RandomMusic
@@ -49,54 +23,51 @@ class ResidentEvilItem(Item):  # or from Items import ResidentEvilItem
 class ResidentEvilLocation(Location):  # or from Locations import ResidentEvilLocation
     game = "Resident Evil"  # name of the game/world this location is in
 
-
 class ResidentEvilSettings(settings.Group):
     random_bgm = False
 
 class ResidentEvilWorld(World):
     """Insert description of the world/game here."""
-    game = "Resident Evil"  # name of the game/world
-    option_definitions = residentevil_options  # options the player can set
+    game = "Resident Evil"
+    option_definitions = residentevil_options
     settings: typing.ClassVar[ResidentEvilSettings]  # will be automatically assigned from type hint
     topology_present = True  # show path to required location checks in spoiler
 
-    # ID of first item and location, could be hard-coded but code may be easier
-    # to read with this as a property.
-    base_id = 1234
-    # Instead of dynamic numbering, IDs could be part of data.
-
-    # The following two dicts are required for the generation to know which
-    # items exist. They could be generated from json or something else. They can
-    # include events, but don't have to since events will be placed manually.
-    item_name_to_id = {item.name: item.id for item in residentevil_items}
-    location_name_to_id = {location.name: location.index for location in residentevil_locations}
-
-    # Items can be grouped using their names to allow easy checking if any item
-    # from that group has been collected. Group names can also be used for !hint
-    item_name_groups = {
-        "weapons": {"handgun", "magnum"},
-    }
+    item_name_to_id = biorand_data.get_item_name_to_id_map()
+    location_name_to_id = biorand_data.get_location_name_to_id_map()
+    item_name_groups = biorand_data.get_item_name_groups()
 
     def create_item(self, name: str) -> ResidentEvilItem:
         return ResidentEvilItem(name, ItemClassification.filler, self.item_name_to_id[name], self.player)
 
     def create_items(self) -> None:
+        item_id_to_data = {item.id: item for item in biorand_data.items}
         item_pool: List[ResidentEvilItem] = []
-        for i in range(1, 10):
-            for item in residentevil_items:
-                item_pool.append(self.create_item(item.name))
+        for location in biorand_data.locations:
+            item = item_id_to_data[location.item]
+            item_pool.append(self.create_item(item.name))
         self.multiworld.itempool += item_pool
 
     def create_regions(self) -> None:
         menu_region = Region("Menu", self.player, self.multiworld)
         self.multiworld.regions.append(menu_region)
+    
+        # Create regions
+        regions = []
+        for br in biorand_data.regions:
+            region = Region(br.name, self.player, self.multiworld)
+            region_locations = {location.name: location.index for location in br.locations}
+            region.add_locations(region_locations, ResidentEvilLocation)
+            regions.append(region)
+            self.multiworld.regions.append(region)
 
-        main_region = Region("Main Area", self.player, self.multiworld)
-        main_region.add_locations(self.location_name_to_id, ResidentEvilLocation)
+        # Connect regions together
+        for index, br in enumerate(biorand_data.regions):
+            region = regions[index]
+            for edge in br.edges:
+                region.connect(regions[edge])
 
-        self.multiworld.regions.append(main_region)
-
-        menu_region.connect(main_region)
+        menu_region.connect(regions[0])
 
 #    def generate_basic(self) -> None:
 #        item = self.create_item("Green Herb")
