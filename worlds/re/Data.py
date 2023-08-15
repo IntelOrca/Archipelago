@@ -4,20 +4,18 @@ import collections
 import json
 
 class ItemData(NamedTuple):
+    id: int
     type: int
     amount: int
     name: str
     group: str
-
-    @property
-    def id(self) -> int:
-        return self.type | (self.amount << 8)
 
 class LocationData(NamedTuple):
     id: int
     name: str
     item: int
     priority: str
+    requires: List[int]
 
 class RegionEdge(NamedTuple):
     region: int
@@ -36,6 +34,9 @@ class BioRandData(NamedTuple):
 
     def get_item_name_to_id_map(self):
         return {item.name: item.id for item in self.items}
+    
+    def get_item_id_to_name_map(self):
+        return {item.id: item.name for item in self.items}
 
     def get_location_name_to_id_map(self):
         return {location.name: location.id for location in self.locations}
@@ -58,18 +59,18 @@ def load_biorand_data(path: str) -> BioRandData:
     items = []
     for i in data['items']:
         group = i.get('group', 'misc')
-        items.append(ItemData(i['type'], i['amount'], i['name'], group))
+        items.append(ItemData(i['id'], i.get('type', 0), i.get('amount', 0), i['name'], group))
 
     locations = []
     for l in data['locations']:
-        locations.append(LocationData(l['id'], l['name'], l['item'], l['priority']))
+        locations.append(LocationData(l['id'], l['name'], l['item'], l.get('priority', 'normal'), l.get('requires', [])))
 
     regions = []
     for r in data['regions']:
         edges = []
-        if ('edges' in data):
-            for e in data['edges']:
-                edges.append(RegionEdge(r['region'], r['requires']))
+        if 'edges' in r:
+            for e in r['edges']:
+                edges.append(RegionEdge(e['region'], e.get('requires', [])))
         regions.append(RegionData(r['id'], r['name'], r['locations'], edges))
 
     return BioRandData(items, locations, regions)
