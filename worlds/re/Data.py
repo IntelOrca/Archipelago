@@ -14,14 +14,20 @@ class ItemData(NamedTuple):
         return self.type | (self.amount << 8)
 
 class LocationData(NamedTuple):
-    index: int
+    id: int
     name: str
     item: int
+    priority: str
+
+class RegionEdge(NamedTuple):
+    region: int
+    requires: List[int]
 
 class RegionData(NamedTuple):
+    id: int
     name: str
-    locations: List[LocationData]
-    edges: List[int]
+    locations: List[int]
+    edges: List[RegionEdge]
 
 class BioRandData(NamedTuple):
     items: List[ItemData]
@@ -32,7 +38,10 @@ class BioRandData(NamedTuple):
         return {item.name: item.id for item in self.items}
 
     def get_location_name_to_id_map(self):
-        return {location.name: location.index for location in self.locations}
+        return {location.name: location.id for location in self.locations}
+
+    def get_location_id_to_name_map(self):
+        return {location.id: location.name for location in self.locations}
 
     def get_item_name_groups(self):
         group_to_names = collections.defaultdict(set)
@@ -41,24 +50,26 @@ class BioRandData(NamedTuple):
         return dict(group_to_names)
 
 def load_biorand_data(path: str) -> BioRandData:
-    items = []
-    locations = []
-    regions = []
 
     with open(path, "r") as json_file:
         data = json.load(json_file)
     print(data['seed'])
-    for i in data['items']:
-        items.append(ItemData(i['type'], i['amount'], i['name'], i['group']))
 
-    location_id = 0
-    for region in data['regions']:
-        region_locations = []
-        for i in region['locations']:
-            location = LocationData(location_id, i['name'], i['item'])
-            locations.append(location)
-            region_locations.append(location)
-            location_id = location_id + 1
-        regions.append(RegionData(region['name'], region_locations, region['edges']))
+    items = []
+    for i in data['items']:
+        group = i.get('group', 'misc')
+        items.append(ItemData(i['type'], i['amount'], i['name'], group))
+
+    locations = []
+    for l in data['locations']:
+        locations.append(LocationData(l['id'], l['name'], l['item'], l['priority']))
+
+    regions = []
+    for r in data['regions']:
+        edges = []
+        if ('edges' in data):
+            for e in data['edges']:
+                edges.append(RegionEdge(r['region'], r['requires']))
+        regions.append(RegionData(r['id'], r['name'], r['locations'], edges))
 
     return BioRandData(items, locations, regions)

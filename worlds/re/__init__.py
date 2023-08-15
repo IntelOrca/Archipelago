@@ -51,12 +51,15 @@ class ResidentEvilWorld(World):
     def create_regions(self) -> None:
         menu_region = Region("Menu", self.player, self.multiworld)
         self.multiworld.regions.append(menu_region)
-    
+
+        # Location map
+        location_id_to_name = biorand_data.get_location_id_to_name_map()
+
         # Create regions
         regions = []
         for br in biorand_data.regions:
             region = Region(br.name, self.player, self.multiworld)
-            region_locations = {location.name: location.index for location in br.locations}
+            region_locations = {location_id_to_name[location]: location for location in br.locations}
             region.add_locations(region_locations, ResidentEvilLocation)
             regions.append(region)
             self.multiworld.regions.append(region)
@@ -65,7 +68,7 @@ class ResidentEvilWorld(World):
         for index, br in enumerate(biorand_data.regions):
             region = regions[index]
             for edge in br.edges:
-                region.connect(regions[edge])
+                region.connect(regions[edge.region])
 
         menu_region.connect(regions[0])
 
