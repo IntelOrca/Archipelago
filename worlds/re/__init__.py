@@ -5,7 +5,7 @@ from typing import List
 from worlds.AutoWorld import World
 import typing
 
-biorand_data = load_biorand_data("/mnt/f/games/re2/mod_biorand/ap_pl0.json")
+biorand_data = load_biorand_data("ap_pl0.json")
 
 class RandomMusic(DefaultOnToggle):
     """Whether background music will be randomized"""
