@@ -3,7 +3,6 @@ from BaseClasses import Location, Item, ItemClassification, LocationProgressType
 from Options import Option, DefaultOnToggle
 from typing import List
 from worlds.AutoWorld import World
-import settings
 import typing
 
 biorand_data = load_biorand_data("/mnt/f/games/re2/mod_biorand/ap_pl0.json")
@@ -23,14 +22,11 @@ class ResidentEvilItem(Item):  # or from Items import ResidentEvilItem
 class ResidentEvilLocation(Location):  # or from Locations import ResidentEvilLocation
     game = "Resident Evil"  # name of the game/world this location is in
 
-class ResidentEvilSettings(settings.Group):
-    random_bgm = False
 
 class ResidentEvilWorld(World):
     """Insert description of the world/game here."""
     game = "Resident Evil"
     option_definitions = residentevil_options
-    settings: typing.ClassVar[ResidentEvilSettings]  # will be automatically assigned from type hint
     topology_present = True  # show path to required location checks in spoiler
 
     item_name_to_id = biorand_data.get_item_name_to_id_map()
@@ -83,11 +79,14 @@ class ResidentEvilWorld(World):
                 target_region = regions[edge.region]
                 if edge.requires:
                     keys = self.item_id_to_item_name_set(edge.requires)
-                    region.connect(target_region, f"require{keys}", self.has_requirements(edge.requires))
+                    region.add_exits({ target_region.name: f"require{keys}" }, { target_region.name: self.has_requirements(edge.requires) })
+                    #a region.connect(target_region, f"require{keys}", self.has_requirements(edge.requires))
                 else:
-                    region.connect(target_region)
+                    region.add_exits({ target_region.name: None })
+                    #a region.connect(target_region)
 
-        menu_region.connect(regions[0])
+        menu_region.add_exits({ regions[0].name: None })
+        # menu_region.connect(regions[0])
 
     def generate_basic(self) -> None:
         for bl in biorand_data.locations:
