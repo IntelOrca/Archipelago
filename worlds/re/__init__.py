@@ -65,7 +65,7 @@ class ResidentEvilWorld(World):
 
         # Location map
         location_id_to_name = biorand_data.get_location_id_to_name_map()
-        item_id_to_name = biorand_data.get_item_id_to_name_map()
+        self.item_id_to_name = biorand_data.get_item_id_to_name_map()
 
         # Create regions
         regions: List[Region] = []
